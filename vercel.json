@@ -7,11 +7,6 @@
     { "src": "/api/webhook", "dest": "/api/webhook.py" },
     { "src": "/api/cron",    "dest": "/api/cron.py" },
     { "src": "/api/setup",   "dest": "/api/setup.py" }
-  ],
-  "crons": [
-    {
-      "path": "/api/cron",
-      "schedule": "*/5 * * * *"
-    }
   ]
 }
+
