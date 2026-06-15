@@ -6,9 +6,12 @@ Usage:  GET https://your-app.vercel.app/api/setup
 """
 import os
 import telebot
-from flask import Flask
+from flask import Flask, jsonify
 
-BOT_TOKEN = os.environ['BOT_TOKEN']
+BOT_TOKEN = os.environ.get('BOT_TOKEN')
+if not BOT_TOKEN:
+    raise ValueError("BOT_TOKEN environment variable not set")
+
 bot = telebot.TeleBot(BOT_TOKEN)
 app = Flask(__name__)
 
@@ -21,7 +24,7 @@ def setup():
     vercel_url = os.environ.get('VERCEL_URL', '')
 
     if not vercel_url:
-        return "Error: VERCEL_URL not set. Vercel should set this automatically.", 400
+        return jsonify({"error": "VERCEL_URL not set. Vercel should set this automatically."}), 400
 
     # Ensure https:// prefix
     if not vercel_url.startswith('http'):
