@@ -31,7 +31,10 @@ def setup():
         vercel_url = f"https://{vercel_url}"
 
     webhook_url = f"{vercel_url}/api/webhook"
-    bot.remove_webhook()
-    bot.set_webhook(url=webhook_url)
-
-    return f"✅ Webhook registered: {webhook_url}", 200
+    
+    try:
+        bot.remove_webhook()
+        bot.set_webhook(url=webhook_url)
+        return jsonify({"message": f"✅ Webhook registered: {webhook_url}"}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
