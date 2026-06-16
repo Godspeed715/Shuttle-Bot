@@ -21,10 +21,10 @@ def setup():
     """Register the webhook URL with Telegram."""
     # Vercel gives you: https://your-project.vercel.app
     # We need to tell Telegram to send updates to /api/webhook
-    vercel_url = os.environ.get('VERCEL_URL', '')
+    vercel_url = os.environ.get('TEST_VERCEL_URL', '')
 
     if not vercel_url:
-        return jsonify({"error": "VERCEL_UR not set. Vercel should set this automatically."}), 400
+        return jsonify({"error": "VERCEL_URL not set. Vercel should set this automatically."}), 400
 
     # Ensure https:// prefix
     if not vercel_url.startswith('http'):
