@@ -24,7 +24,7 @@ def setup():
     vercel_url = os.environ.get('VERCEL_URL', '')
 
     if not vercel_url:
-        return jsonify({"error": "VERCEL_URL not set. Vercel should set this automatically."}), 400
+        return jsonify({"error": "VERCEL_UR not set. Vercel should set this automatically."}), 400
 
     # Ensure https:// prefix
     if not vercel_url.startswith('http'):
