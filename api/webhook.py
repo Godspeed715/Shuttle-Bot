@@ -66,38 +66,50 @@ def booking_id():
 
 @bot.message_handler(commands=['start'])
 def cmd_start(message):
-    conn = get_conn()
-    user = db.get_user(conn, message.from_user.id)
+    try:
+        logger.info(f"Processing /start from user {message.from_user.id}")
+        conn = get_conn()
+        user = db.get_user(conn, message.from_user.id)
 
-    if user:
-        if user['role'] == 'student':
-            bot.send_message(message.chat.id,
-                f"👋 Welcome back, {user['full_name']}!\n\n"
-                "/book — Request a ride\n"
-                "/cancel — Cancel active ride\n"
-                "/mystatus — Check ride status\n"
-                "/help — All commands")
-            
-        # If not user obviously it will be a driver and then we check if the driver is approved or not
-        elif user['is_approved']:
-            bot.send_message(message.chat.id,
-                f"👋 Welcome back, Driver {user['full_name']}!\n\n"
-                "/driver — Manage your shuttle\n"
-                "/help — All commands")
-            
-        # If the user is a driver but not approved, we show a pending message
-        else:
-            bot.send_message(message.chat.id,
-                "⏳ Your driver registration is still pending admin approval.")
-        return
+        if user:
+            if user['role'] == 'student':
+                bot.send_message(message.chat.id,
+                    f"👋 Welcome back, {user['full_name']}!\n\n"
+                    "/book — Request a ride\n"
+                    "/cancel — Cancel active ride\n"
+                    "/mystatus — Check ride status\n"
+                    "/help — All commands")
+                
+            # If not user obviously it will be a driver and then we check if the driver is approved or not
+            elif user['is_approved']:
+                bot.send_message(message.chat.id,
+                    f"👋 Welcome back, Driver {user['full_name']}!\n\n"
+                    "/driver — Manage your shuttle\n"
+                    "/help — All commands")
+                
+            # If the user is a driver but not approved, we show a pending message
+            else:
+                bot.send_message(message.chat.id,
+                    "⏳ Your driver registration is still pending admin approval.")
+            return
 
-    # Check for pending driver request
-    if db.get_pending_driver_request(conn, message.from_user.id):
+        # Check for pending driver request
+        if db.get_pending_driver_request(conn, message.from_user.id):
+            bot.send_message(message.chat.id,
+                "⏳ You already have a pending driver registration.\nPlease wait for admin approval.")
+            return
+
+        # if no user and no pending driver request, start registration flow
         bot.send_message(message.chat.id,
-            "⏳ You already have a pending driver registration.\nPlease wait for admin approval.")
-        return
-
-    # if no user and no pending driver request, start registration flow
+            "🚐 *Welcome to Campus Shuttle!*\n\nPlease select your role:",
+            parse_mode='Markdown', reply_markup=role_keyboard())
+        logger.info(f"Sent /start registration prompt to user {message.from_user.id}")
+    except Exception as e:
+        logger.error(f"Error in cmd_start for user {message.from_user.id}: {e}", exc_info=True)
+        try:
+            bot.send_message(message.chat.id, "❌ An error occurred. Please try again.")
+        except:
+            logger.error(f"Failed to send error message to {message.chat.id}")
     bot.send_message(message.chat.id,
         "🚐 *Welcome to Campus Shuttle!*\n\nPlease select your role:",
         parse_mode='Markdown', reply_markup=role_keyboard())
@@ -626,70 +638,85 @@ def cmd_help(message):
 
 @bot.message_handler(func=lambda m: True, content_types=['text'])
 def handle_text(message):
-    conn = get_conn()
-    state = db.get_state(conn, message.from_user.id)
-    if not state:
-        return  # no active conversational state — ignore
+    try:
+        logger.info(f"Handling text message from user {message.from_user.id}: {message.text[:50]}")
+        conn = get_conn()
+        state = db.get_state(conn, message.from_user.id)
+        if not state:
+            logger.debug(f"No active state for user {message.from_user.id}")
+            return  # no active conversational state — ignore
 
-    state_name = state['state']
-    state_data = state['data'] if isinstance(state['data'], dict) else {}
+        state_name = state['state']
+        state_data = state['data'] if isinstance(state['data'], dict) else {}
 
-    # ── Name entry (both student and driver) ──
-    if state_name == 'waiting_for_name':
-        name = message.text.strip()
-        if len(name) < 2 or len(name) > 100:
-            bot.send_message(message.chat.id, "❌ Name must be 2–100 characters. Try again:")
-            return
+        # ── Name entry (both student and driver) ──
+        if state_name == 'waiting_for_name':
+            name = message.text.strip()
+            if len(name) < 2 or len(name) > 100:
+                bot.send_message(message.chat.id, "❌ Name must be 2–100 characters. Try again:")
+                logger.warning(f"Invalid name length from user {message.from_user.id}: {len(name)}")
+                return
 
-        role = state_data.get('role', 'student')
+            role = state_data.get('role', 'student')
 
-        if role == 'student':
-            db.create_user(conn, message.from_user.id, message.from_user.username, name, 'student')
+            if role == 'student':
+                db.create_user(conn, message.from_user.id, message.from_user.username, name, 'student')
+                db.clear_state(conn, message.from_user.id)
+                bot.send_message(message.chat.id,
+                    f"✅ *Registration Complete!*\n\nWelcome, {name}! 🎓\n\n"
+                    "Use /book to request a ride.",
+                    parse_mode='Markdown')
+                logger.info(f"Student registered: {message.from_user.id} - {name}")
+            else:
+                db.set_state(conn, message.from_user.id, 'waiting_for_shuttle_name',
+                             {'role': 'driver', 'full_name': name})
+                bot.send_message(message.chat.id,
+                    "🚐 What is the name or number of your shuttle? (e.g. *Shuttle 7*):",
+                    parse_mode='Markdown')
+                logger.info(f"Driver name received: {message.from_user.id} - {name}")
+
+        # ── Shuttle name entry (driver only) ──
+        elif state_name == 'waiting_for_shuttle_name':
+            shuttle_name = message.text.strip()
+            if len(shuttle_name) < 1 or len(shuttle_name) > 100:
+                bot.send_message(message.chat.id, "❌ Invalid shuttle name. Try again:")
+                logger.warning(f"Invalid shuttle name from user {message.from_user.id}: {len(shuttle_name)}")
+                return
+
+            full_name = state_data.get('full_name', 'Unknown')
             db.clear_state(conn, message.from_user.id)
+
+            # Create driver request for admin approval
+            dreq = db.create_driver_request(conn, message.from_user.id,
+                                            message.from_user.username, full_name, shuttle_name)
+            logger.info(f"Driver request created: {dreq['id']} - {full_name} ({shuttle_name})")
+
+            # Notify admins
+            for admin_id in ADMIN_IDS:
+                try:
+                    bot.send_message(admin_id,
+                        f"🚐 *New Driver Registration*\n\n"
+                        f"👤 Name: {full_name}\n"
+                        f"📱 Username: @{message.from_user.username or 'N/A'}\n"
+                        f"🚐 Shuttle: {shuttle_name}\n\n"
+                        "Approve or reject this driver?",
+                        parse_mode='Markdown',
+                        reply_markup=admin_approval_keyboard(dreq['id']))
+                    logger.info(f"Sent admin approval message to {admin_id}")
+                except Exception as admin_error:
+                    logger.error(f"Failed to notify admin {admin_id}: {admin_error}")
+
             bot.send_message(message.chat.id,
-                f"✅ *Registration Complete!*\n\nWelcome, {name}! 🎓\n\n"
-                "Use /book to request a ride.",
+                "✅ *Registration Submitted!*\n\n"
+                "Your driver application has been sent to the admins.\n"
+                "You'll be notified once it's reviewed.",
                 parse_mode='Markdown')
-        else:
-            db.set_state(conn, message.from_user.id, 'waiting_for_shuttle_name',
-                         {'role': 'driver', 'full_name': name})
-            bot.send_message(message.chat.id,
-                "🚐 What is the name or number of your shuttle? (e.g. *Shuttle 7*):",
-                parse_mode='Markdown')
-
-    # ── Shuttle name entry (driver only) ──
-    elif state_name == 'waiting_for_shuttle_name':
-        shuttle_name = message.text.strip()
-        if len(shuttle_name) < 1 or len(shuttle_name) > 100:
-            bot.send_message(message.chat.id, "❌ Invalid shuttle name. Try again:")
-            return
-
-        full_name = state_data.get('full_name', 'Unknown')
-        db.clear_state(conn, message.from_user.id)
-
-        # Create driver request for admin approval
-        dreq = db.create_driver_request(conn, message.from_user.id,
-                                        message.from_user.username, full_name, shuttle_name)
-
-        # Notify admins
-        for admin_id in ADMIN_IDS:
-            try:
-                bot.send_message(admin_id,
-                    f"🚐 *New Driver Registration*\n\n"
-                    f"👤 Name: {full_name}\n"
-                    f"📱 Username: @{message.from_user.username or 'N/A'}\n"
-                    f"🚐 Shuttle: {shuttle_name}\n\n"
-                    "Approve or reject this driver?",
-                    parse_mode='Markdown',
-                    reply_markup=admin_approval_keyboard(dreq['id']))
-            except Exception:
-                pass
-
-        bot.send_message(message.chat.id,
-            "✅ *Registration Submitted!*\n\n"
-            "Your driver application has been sent to the admins.\n"
-            "You'll be notified once it's reviewed.",
-            parse_mode='Markdown')
+    except Exception as e:
+        logger.error(f"Error in handle_text for user {message.from_user.id}: {e}", exc_info=True)
+        try:
+            bot.send_message(message.chat.id, "❌ An error occurred processing your message. Please try again.")
+        except:
+            logger.error(f"Failed to send error message to {message.chat.id}")
 
 
 # ═══════════════════════════════════════════════════════════
@@ -704,14 +731,21 @@ def webhook():
             logger.warning("Webhook received empty JSON")
             return {'status': 'ok'}, 200
         
+        logger.debug(f"Received webhook data: {data}")
+        
         update = telebot.types.Update.de_json(data)
         if update:
-            bot.process_new_updates([update])
-            logger.info(f"Processed update {update.update_id}")
+            logger.info(f"Processing update {update.update_id}")
+            try:
+                bot.process_new_updates([update])
+                logger.info(f"Successfully processed update {update.update_id}")
+            except Exception as handler_error:
+                logger.error(f"Handler error processing update {update.update_id}: {handler_error}", exc_info=True)
+                raise
         else:
-            logger.warning("Failed to parse update")
+            logger.warning("Failed to parse update from JSON")
     except Exception as e:
         logger.error(f"Webhook error: {e}", exc_info=True)
-        return {'error': str(e)}, 500
+        return {'error': str(e), 'status': 'error'}, 500
     
     return {'status': 'ok'}, 200
