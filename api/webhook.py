@@ -728,24 +728,27 @@ def webhook():
     try:
         data = request.get_json(force=True)
         if data is None:
-            logger.warning("Webhook received empty JSON")
+            logger.warning("⚠️ Webhook received empty JSON")
             return {'status': 'ok'}, 200
-        logger.info(f"Received webhook data: {data}")
-        logger.debug(f"Received webhook data: {data}")
+        
+        logger.debug(f"📨 Raw webhook data: {json.dumps(data, default=str)[:200]}")
         
         update = telebot.types.Update.de_json(data)
         if update:
-            logger.info(f"Processing update {update.update_id}")
+            logger.info(f"📤 Processing update {update.update_id}")
             try:
                 bot.process_new_updates([update])
-                logger.info(f"Successfully processed update {update.update_id}")
+                logger.info(f"✅ Update {update.update_id} processed successfully")
             except Exception as handler_error:
-                logger.error(f"Handler error processing update {update.update_id}: {handler_error}", exc_info=True)
-                raise
+                logger.error(f"❌ Handler error on update {update.update_id}: {handler_error}", exc_info=True)
+                # Still return 200 to prevent Telegram retry
         else:
-            logger.warning("Failed to parse update from JSON")
+            logger.warning("⚠️ Failed to parse update from JSON data")
     except Exception as e:
-        logger.error(f"Webhook error: {e}", exc_info=True)
-        return {'error': str(e), 'status': 'error'}, 500
+        logger.error(f"❌ Webhook endpoint exception: {e}", exc_info=True)
     
     return {'status': 'ok'}, 200
+
+
+if __name__ == '__main__':
+    app.run(debug=True, port=5000)
