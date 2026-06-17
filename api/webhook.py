@@ -15,12 +15,8 @@ import psycopg2
 from psycopg2.extras import RealDictCursor
 from flask import Flask, request
 
-# ───── Add project root to path so we can import lib/ ─────
-import sys
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
-
-from lib import db
-from lib.keyboards import (
+from functions import db
+from functions.keyboards import (
     role_keyboard, pickup_keyboard, destination_keyboard,
     drivers_keyboard, ride_response_keyboard, cancel_confirm_keyboard,
     admin_approval_keyboard, driver_dashboard_keyboard, location_update_keyboard,
