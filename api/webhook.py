@@ -730,7 +730,7 @@ def webhook():
         if data is None:
             logger.warning("Webhook received empty JSON")
             return {'status': 'ok'}, 200
-        
+        logger.info(f"Received webhook data: {data}")
         logger.debug(f"Received webhook data: {data}")
         
         update = telebot.types.Update.de_json(data)
