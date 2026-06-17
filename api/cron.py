@@ -17,7 +17,7 @@ from psycopg2.extras import RealDictCursor
 from flask import Flask
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
-from lib import db
+from functions import db
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
