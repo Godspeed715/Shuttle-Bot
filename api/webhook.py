@@ -70,7 +70,7 @@ def cmd_start(message):
         logger.info(f"Processing /start from user {message.from_user.id}")
         conn = get_conn()
         user = db.get_user(conn, message.from_user.id)
-
+        logger.info(f"Processed /start from user {message.from_user.id} and has gotten conn and user")
         if user:
             if user['role'] == 'student':
                 bot.send_message(message.chat.id,
