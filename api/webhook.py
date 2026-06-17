@@ -699,8 +699,19 @@ def handle_text(message):
 @app.route('/api/webhook', methods=['POST'])
 def webhook():
     try:
-        update = telebot.types.Update.de_json(request.get_json(force=True))
-        bot.process_new_updates([update])
+        data = request.get_json(force=True)
+        if data is None:
+            logger.warning("Webhook received empty JSON")
+            return {'status': 'ok'}, 200
+        
+        update = telebot.types.Update.de_json(data)
+        if update:
+            bot.process_new_updates([update])
+            logger.info(f"Processed update {update.update_id}")
+        else:
+            logger.warning("Failed to parse update")
     except Exception as e:
         logger.error(f"Webhook error: {e}", exc_info=True)
-    return 'ok', 200
+        return {'error': str(e)}, 500
+    
+    return {'status': 'ok'}, 200
