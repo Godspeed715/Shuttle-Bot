@@ -39,7 +39,6 @@ BOT_TOKEN    = os.environ.get('BOT_TOKEN')
 DATABASE_URL = os.environ.get('DATABASE_URL')
 ADMIN_IDS    = [int(x) for x in os.environ.get('ADMIN_CHAT_IDS', '').split(',') if x.strip()]
 TIMEOUT_SEC  = int(os.environ.get('REQUEST_TIMEOUT_SECONDS', '300'))
-VERCEL_URL = os.environ.get('VERCEL_URL')
 
 bot = telebot.TeleBot(BOT_TOKEN)
 app = Flask(__name__)
@@ -731,7 +730,7 @@ def handle_text(message):
 # FLASK ENDPOINT  (Vercel calls this)
 # ═══════════════════════════════════════════════════════════
 
-@app.route(f'/{VERCEL_URL}', methods=['POST'])
+@app.route(f'/{BOT_TOKEN}', methods=['POST'])
 def webhook():
     try:
         data = request.get_json(force=True)
