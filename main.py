@@ -745,7 +745,7 @@ def webhook():
             if update:
                 logger.info(f"📤 Processing update {update.update_id}")
                 try:
-                    bot.process_new_updates([update])
+                    bot.process_new_updates([update], threaded=False)
                     logger.info(f"✅ Update {update.update_id} processed successfully")
                 except Exception as handler_error:
                     logger.error(f"❌ Handler error on update {update.update_id}: {handler_error}", exc_info=True)
