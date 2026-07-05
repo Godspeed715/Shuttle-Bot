@@ -730,32 +730,36 @@ def handle_text(message):
 # FLASK ENDPOINT  (Vercel calls this)
 # ═══════════════════════════════════════════════════════════
 
-@app.route(f'/{BOT_TOKEN}', methods=['POST'])
+@app.route(f'/{BOT_TOKEN}', methods=['POST','GET'])
 def webhook():
-    try:
-        data = request.get_json(force=True)
-        if data is None:
-            logger.warning("⚠️ Webhook received empty JSON")
-            return {'status': 'ok'}, 200
+    if request.method == 'POST':
+        try:
+            data = request.get_json(force=True)
+            if data is None:
+                logger.warning("⚠️ Webhook received empty JSON")
+                return {'status': 'ok'}, 200
+            
+            logger.debug(f"📨 Raw webhook data: {json.dumps(data, default=str)[:200]}")
+            
+            update = telebot.types.Update.de_json(data)
+            if update:
+                logger.info(f"📤 Processing update {update.update_id}")
+                try:
+                    bot.process_new_updates([update])
+                    logger.info(f"✅ Update {update.update_id} processed successfully")
+                except Exception as handler_error:
+                    logger.error(f"❌ Handler error on update {update.update_id}: {handler_error}", exc_info=True)
+                    # Still return 200 to prevent Telegram retry
+            else:
+                logger.warning("⚠️ Failed to parse update from JSON data")
+        except Exception as e:
+            logger.error(f"❌ Webhook endpoint exception: {e}", exc_info=True)
+            return {'status':'Error','message':'Error in WebHook!'},403
         
-        logger.debug(f"📨 Raw webhook data: {json.dumps(data, default=str)[:200]}")
-        
-        update = telebot.types.Update.de_json(data)
-        if update:
-            logger.info(f"📤 Processing update {update.update_id}")
-            try:
-                bot.process_new_updates([update])
-                logger.info(f"✅ Update {update.update_id} processed successfully")
-            except Exception as handler_error:
-                logger.error(f"❌ Handler error on update {update.update_id}: {handler_error}", exc_info=True)
-                # Still return 200 to prevent Telegram retry
-        else:
-            logger.warning("⚠️ Failed to parse update from JSON data")
-    except Exception as e:
-        logger.error(f"❌ Webhook endpoint exception: {e}", exc_info=True)
-        return {'status':'Error','message':'Error in WebHook!'},403
+        return {'status': 'ok'}, 200
     
-    return {'status': 'ok'}, 200
+    elif request.method == 'GET':
+        return {'status':'ok'},201
 
 
 if __name__ == '__main__':
