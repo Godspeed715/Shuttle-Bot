@@ -40,7 +40,7 @@ DATABASE_URL = os.environ.get('DATABASE_URL')
 ADMIN_IDS    = [int(x) for x in os.environ.get('ADMIN_CHAT_IDS', '').split(',') if x.strip()]
 TIMEOUT_SEC  = int(os.environ.get('REQUEST_TIMEOUT_SECONDS', '300'))
 
-bot = telebot.TeleBot(BOT_TOKEN)
+bot = telebot.TeleBot(BOT_TOKEN, threaded=False)
 app = Flask(__name__)
 
 
@@ -745,7 +745,7 @@ def webhook():
             if update:
                 logger.info(f"📤 Processing update {update.update_id}")
                 try:
-                    bot.process_new_updates([update], threaded=False)
+                    bot.process_new_updates([update])
                     logger.info(f"✅ Update {update.update_id} processed successfully")
                 except Exception as handler_error:
                     logger.error(f"❌ Handler error on update {update.update_id}: {handler_error}", exc_info=True)
