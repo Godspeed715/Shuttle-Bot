@@ -730,7 +730,7 @@ def handle_text(message):
 # FLASK ENDPOINT  (Vercel calls this)
 # ═══════════════════════════════════════════════════════════
 
-@app.route('/asdfghjkl12390', methods=['POST','GET'])
+@app.route(f'/{BOT_TOKEN}', methods=['POST','GET'])
 def webhook():
     if request.method == 'POST':
         try:
