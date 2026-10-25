@@ -220,3 +220,7 @@ __marimo__/
 
 #random
 *example*
+
+# Personal
+migrations/
+*fake*.py
