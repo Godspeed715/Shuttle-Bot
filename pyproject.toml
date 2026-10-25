@@ -3,12 +3,9 @@ name = "shuttle-bot"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
-<<<<<<< HEAD
 authors = [
     { name = "Godspeed715", email = "chimzagamdaniel@gmail.com" }
 ]
-=======
->>>>>>> 6b179974a73dbe5bea37557c450eee11de2aca4a
 requires-python = ">=3.14"
 dependencies = [
     "aiohappyeyeballs==2.6.2",
@@ -23,11 +20,7 @@ dependencies = [
     "dotenv==0.9.9",
     "flask==3.1.3",
     "frozenlist==1.8.0",
-<<<<<<< HEAD
     "gunicorn>=26.2.0",
-=======
-    "gunicorn>=26.0.0",
->>>>>>> 6b179974a73dbe5bea37557c450eee11de2aca4a
     "idna==3.18",
     "itsdangerous==2.2.0",
     "jinja2==3.1.6",
@@ -42,7 +35,6 @@ dependencies = [
     "werkzeug==3.1.8",
     "yarl==1.24.2",
 ]
-<<<<<<< HEAD
 
 [project.scripts]
 shuttle-bot = "shuttle_bot:main"
@@ -50,5 +42,3 @@ shuttle-bot = "shuttle_bot:main"
 [build-system]
 requires = ["uv_build>=0.13.1,<0.14.0"]
 build-backend = "uv_build"
-=======
->>>>>>> 6b179974a73dbe5bea37557c450eee11de2aca4a
