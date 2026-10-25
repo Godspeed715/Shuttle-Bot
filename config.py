@@ -29,11 +29,12 @@ MAX_PASSENGERS_CAR   = 4
 MAX_PASSENGERS_SIENA = 7
 
 # ── Bot runtime mode ────────────────────────────────────────────────────────────
-# Default to polling for local/testing use.
-# Old WebHook mode: set BOT_MODE=webhook to switch back to the original webhook setup.
-BOT_MODE = os.environ.get('BOT_MODE', 'polling').strip().lower()
+# Webhook is active by default for Vercel deployment.
+# Polling is left here as a commented fallback for local testing only:
+# BOT_MODE = 'polling'
+BOT_MODE = os.environ.get('BOT_MODE', 'webhook').strip().lower()
 if BOT_MODE not in {'polling', 'webhook'}:
-    BOT_MODE = 'polling'
+    BOT_MODE = 'webhook'
 
 # ── Misc ──────────────────────────────────────────────────────────────────────
 # Old WebHook path kept here for easy reactivation:

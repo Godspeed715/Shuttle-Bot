@@ -89,33 +89,41 @@ def handle_text(message):
         bot.send_message(message.chat.id, "❌ An error occurred processing your input. Please try again.")
 
 
-# ── WebHook (old code kept for easy switch back) ──────────────────────────────
-# @app.route(WEBHOOK_PATH, methods=['POST', 'GET'])
-# @app.route('/api/webhook', methods=['POST', 'GET'])
-# def telegram_webhook():
-#     if request.method == 'POST':
-#         try:
-#             data = request.get_json(force=True)
-#             if not data:
-#                 return {'status': 'ok'}, 200
-#
-#             update = telebot.types.Update.de_json(data)
-#             if update:
-#                 bot.process_new_updates([update])
-#         except Exception as e:
-#             logger.error(f"Webhook processing error: {e}", exc_info=True)
-#             return {'status': 'error', 'message': str(e)}, 200
-#
-#         return {'status': 'ok'}, 200
-#
-#     return {'status': 'ok', 'service': 'telegram_webhook'}, 200
-#
-#
-# ── Paystack WebHook (old code kept for easy switch back) ─────────────────────
-# @app.route('/api/paystack/webhook', methods=['POST'])
-# def paystack_webhook_route():
-#     """Receives charge.success and transfer events from Paystack."""
-#     return handle_paystack_webhook(bot, get_conn, request)
+# ── Polling mode (kept as commented fallback for local testing only) ────────
+# if BOT_MODE == 'polling':
+#     logger.info("Starting Campus Shuttle Bot in polling mode for testing...")
+#     bot.infinity_polling(timeout=20, long_polling_timeout=30, skip_pending=True)
+# else:
+#     logger.info("Starting Campus Shuttle Bot on port 5000 in webhook mode...")
+#     app.run(debug=True, port=5000)
+
+# ── Telegram WebHook (active for Vercel deployment) ───────────────────────────
+@app.route(WEBHOOK_PATH, methods=['POST', 'GET'])
+@app.route('/api/webhook', methods=['POST', 'GET'])
+def telegram_webhook():
+    if request.method == 'POST':
+        try:
+            data = request.get_json(force=True)
+            if not data:
+                return {'status': 'ok'}, 200
+
+            update = telebot.types.Update.de_json(data)
+            if update:
+                bot.process_new_updates([update])
+        except Exception as e:
+            logger.error(f"Webhook processing error: {e}", exc_info=True)
+            return {'status': 'error', 'message': str(e)}, 200
+
+        return {'status': 'ok'}, 200
+
+    return {'status': 'ok', 'service': 'telegram_webhook'}, 200
+
+
+# ── Paystack WebHook (active for Vercel deployment) ───────────────────────────
+@app.route('/api/paystack/webhook', methods=['POST'])
+def paystack_webhook_route():
+    """Receives charge.success and transfer events from Paystack."""
+    return handle_paystack_webhook(bot, get_conn, request)
 
 
 # ── Cron Route (Auto-expires stale rides) ─────────────────────────────────────
@@ -198,6 +206,7 @@ def webhook():
 if __name__ == '__main__':
     if BOT_MODE == 'polling':
         logger.info("Starting Campus Shuttle Bot in polling mode for testing...")
+        # Polling mode kept here as a local-test fallback.
         bot.infinity_polling(timeout=20, long_polling_timeout=30, skip_pending=True)
     else:
         logger.info("Starting Campus Shuttle Bot on port 5000 in webhook mode...")
