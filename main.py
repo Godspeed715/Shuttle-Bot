@@ -152,67 +152,47 @@ def cron_route():
 
         return jsonify({"message": f"Expired {count} stale ride(s)", "count": count}), 200
     except Exception as e:
-        logger.error(f"Cron execution error: {e}", exc_info=True)
-        return jsonify({"error": str(e)}), 500
+        logger.error(f"Error in handle_text for user {message.from_user.id}: {e}", exc_info=True)
+        try:
+            bot.send_message(message.chat.id, "❌ An error occurred processing your message. Please try again.")
+        except:
+            logger.error(f"Failed to send error message to {message.chat.id}")
 
 
-# ── Webhook Registration Helper ───────────────────────────────────────────────
-@app.route('/api/setup', methods=['GET'])
-def setup_webhook_route():
-    """Register the Telegram webhook URL if webhook mode is active."""
-    if BOT_MODE == 'polling':
-        return jsonify({
-            "mode": "polling",
-            "message": "Polling mode is active for testing. Set BOT_MODE=webhook to switch back to webhook mode.",
-        }), 200
+# ═══════════════════════════════════════════════════════════
+# FLASK ENDPOINT  (Vercel calls this)
+# ═══════════════════════════════════════════════════════════
 
-    vercel_url = os.environ.get('TEST_VERCEL_URL', '') or os.environ.get('VERCEL_URL', '')
-    if not vercel_url:
-        return jsonify({"error": "VERCEL_URL environment variable is not set"}), 400
-
-    if not vercel_url.startswith('http'):
-        vercel_url = f"https://{vercel_url}"
-
-    webhook_url = f"{vercel_url.rstrip('/')}{WEBHOOK_PATH}"
-    try:
-        bot.remove_webhook()
-        bot.set_webhook(url=webhook_url)
-        return jsonify({"mode": "webhook", "message": f"✅ Webhook registered: {webhook_url}"}), 200
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-
-# ── Admin Remittances API Route ───────────────────────────────────────────────
-@app.route('/api/admin/remittances', methods=['GET'])
-def admin_remittances_api():
-    """Protected API endpoint for admin to view outstanding cash debts."""
-    conn = get_conn()
-    debtors = db.get_drivers_with_debt(conn)
-    total_debt = sum(d['commission_owed'] for d in debtors)
-    return jsonify({
-        "total_outstanding_commission": total_debt,
-        "debtor_count": len(debtors),
-        "drivers": [
-            {
-                "driver_id": d['driver_id'],
-                "full_name": d['full_name'],
-                "commission_owed": d['commission_owed'],
-                "balance": d['balance'],
-                "total_earned": d['total_earned'],
-            }
-            for d in debtors
-        ]
-    }), 200
-
-
-# ── Health Check ──────────────────────────────────────────────────────────────
-@app.route('/', methods=['GET'])
-def index():
-    return jsonify({
-        "service": "Campus Shuttle Bot API",
-        "status": "online",
-        "version": "2.0.0"
-    }), 200
+@app.route(f'/{BOT_TOKEN}', methods=['POST','GET'])
+def webhook():
+    if request.method == 'POST':
+        try:
+            data = request.get_json(force=True)
+            if data is None:
+                logger.warning("⚠️ Webhook received empty JSON")
+                return {'status': 'ok'}, 200
+            
+            logger.debug(f"📨 Raw webhook data: {json.dumps(data, default=str)[:200]}")
+            
+            update = telebot.types.Update.de_json(data)
+            if update:
+                logger.info(f"📤 Processing update {update.update_id}")
+                try:
+                    bot.process_new_updates([update])
+                    logger.info(f"✅ Update {update.update_id} processed successfully")
+                except Exception as handler_error:
+                    logger.error(f"❌ Handler error on update {update.update_id}: {handler_error}", exc_info=True)
+                    # Still return 200 to prevent Telegram retry
+            else:
+                logger.warning("⚠️ Failed to parse update from JSON data")
+        except Exception as e:
+            logger.error(f"❌ Webhook endpoint exception: {e}", exc_info=True)
+            return {'status':'Error','message':'Error in WebHook!'},403
+        
+        return {'status': 'ok'}, 200
+    
+    elif request.method == 'GET':
+        return {'status':'ok'},201
 
 
 if __name__ == '__main__':
